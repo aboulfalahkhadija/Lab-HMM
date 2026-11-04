@@ -9,6 +9,12 @@ import math
 import os
 import random
 import re
+import sys
+
+# Ensure current script directory is in sys.path for Streamlit Cloud
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 
 import matplotlib
 matplotlib.use("Agg")
@@ -127,12 +133,26 @@ st.markdown(
 # -----------------------------------------------------------------------------
 # Data & Model Caching
 # -----------------------------------------------------------------------------
+def find_file(rel_path):
+    candidates = [
+        os.path.join(BASE_DIR, rel_path),
+        os.path.join(BASE_DIR, "03_chaotic_text_generator", rel_path),
+        rel_path,
+        os.path.join("03_chaotic_text_generator", rel_path),
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    return None
+
+
 @st.cache_resource(show_spinner="Initializing models and loading corpus...")
 def get_data_and_models():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    corpus_path = os.path.join(base_dir, "data", "corpus.csv")
-    if not os.path.exists(corpus_path):
-        corpus_path = "data/corpus.csv"
+    corpus_path = find_file("data/corpus.csv")
+    if not corpus_path:
+        raise FileNotFoundError(
+            "Could not find 'data/corpus.csv'. Please make sure data/corpus.csv is committed to your GitHub repository."
+        )
 
     docs = load_tagged(corpus_path)
     train, test = split_by_document(docs)
@@ -481,11 +501,8 @@ with tab_tagger:
 with tab_compare:
     st.markdown("#### Empirical Benchmark Results (N = 500 sentences)")
 
-    metrics_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results", "metrics.json")
-    if not os.path.exists(metrics_file):
-        metrics_file = "results/metrics.json"
-
-    if os.path.exists(metrics_file):
+    metrics_file = find_file("results/metrics.json")
+    if metrics_file and os.path.exists(metrics_file):
         bench_data = json.load(open(metrics_file, encoding="utf-8"))
         gen = bench_data.get("generation", {})
 
@@ -578,11 +595,8 @@ with tab_real:
         "on 12,544 training sentences and 2,077 test sentences (17 UPOS categories)."
     )
 
-    ewt_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results", "ewt_results.json")
-    if not os.path.exists(ewt_file):
-        ewt_file = "results/ewt_results.json"
-
-    if os.path.exists(ewt_file):
+    ewt_file = find_file("results/ewt_results.json")
+    if ewt_file and os.path.exists(ewt_file):
         ewt_data = json.load(open(ewt_file, encoding="utf-8"))
         models = ewt_data.get("models", {})
         mf = models.get("most-frequent tag", {})
